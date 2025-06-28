@@ -68,7 +68,51 @@ To run this project locally, follow these steps:
 
 The application should now be running locally. Refer to the specific backend and frontend code for default ports and access details.
 
+## Deployment
+
+To deploy this application, you need to deploy the backend and frontend separately.
+
+### Backend Deployment
+
+Deploy the backend application (files in the `backend/` directory) to a hosting platform like Render, Heroku, or similar services that support Python web applications.
+
+You will need to configure the following environment variables on your backend hosting platform:
+
+*   `GOOGLE_CREDENTIALS_JSON`: The entire JSON content of your Google Cloud credentials file. This is used for Google Calendar OAuth.
+*   `GEMINI_API_KEY`: Your Google Gemini API key.
+*   `FRONTEND_URL`: The public URL of your deployed Streamlit frontend application. This is used for the redirect after successful Google Calendar authorization.
+
+You also need to add the backend's OAuth2 callback URL to the Authorized Redirect URIs in your Google Cloud Platform project's OAuth 2.0 Client ID settings. The URL is your backend's public URL followed by `/oauth2callback`. For example: `https://your-backend-url.com/oauth2callback`.
+
+### Frontend Deployment
+
+Deploy the frontend application (files in the `frontend/` directory) to Streamlit Cloud.
+
+You need to provide the backend URL to the frontend application. The recommended way to do this on Streamlit Cloud is by creating a `.streamlit/config.toml` file in the root of your frontend repository with the following content:
+
+```toml
+[server]
+enableCORS = true
+enableXsrfProtection = false
+
+[client]
+# Set environment variables for the Streamlit app
+environment = { BACKEND_URL = "YOUR_BACKEND_URL_HERE" }
+```
+
+Replace `"YOUR_BACKEND_URL_HERE"` with the public URL of your deployed backend application.
+
 ## Environment Variables and Credentials
 
--   `.env`: Located in the root directory, this file is used to store environment-specific variables like API keys. It must contain `GEMINI_API_KEY`.
--   Credentials JSON: A JSON file containing your Google Cloud credentials must be placed inside the `env` folder in the root directory. This is necessary for services requiring GCP authentication.
+This project uses environment variables for configuration, both for local development and deployment.
+
+### Local Development
+
+For local development, environment variables are typically stored in a `.env` file in the root directory.
+
+*   `.env`: Located in the root directory, this file is used to store environment-specific variables like API keys. It must contain `GEMINI_API_KEY`.
+*   Credentials JSON: A JSON file containing your Google Cloud credentials must be placed inside the `env` folder in the root directory. This is necessary for services requiring GCP authentication.
+
+### Deployment
+
+For deployment, environment variables should be configured directly on the hosting platform (e.g., Render, Streamlit Cloud) rather than using `.env` files or including sensitive files like `credentials.json` in the repository. Refer to the Deployment section above for the required environment variables for backend and frontend deployments.

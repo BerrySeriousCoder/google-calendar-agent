@@ -79,14 +79,16 @@ def oauth2callback(request: Request):
     flow.fetch_token(code=code)
     creds = flow.credentials
     save_token(json.loads(creds.to_json()))
-    return HTMLResponse("""
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501") # Default to localhost for local development
+    html_content = f"""
         <h3>Google Calendar connected! Redirecting to the app...</h3>
         <script>
-            setTimeout(function() {
-                window.location.href = 'http://localhost:8501';
-            }, 1500);
+            setTimeout(function() {{
+                window.location.href = '{frontend_url}';
+            }}, 1500);
         </script>
-    """)
+    """
+    return HTMLResponse(content=html_content)
 
 def is_authenticated():
     token = load_token()
