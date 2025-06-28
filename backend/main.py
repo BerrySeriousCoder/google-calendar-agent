@@ -16,6 +16,11 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 app = FastAPI(title="Super Calendar Agent")
 
+# Serve static files (including auth_redirect.html)
+from fastapi.staticfiles import StaticFiles
+static_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static')
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 # Mount OAuth router
 app.include_router(oauth_router)
 

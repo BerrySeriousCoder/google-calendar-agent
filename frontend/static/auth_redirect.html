@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Authentication Complete</title>
+</head>
+<body>
+  <script>
+    // Parse token_data from URL
+    const params = new URLSearchParams(window.location.search);
+    const token_data = params.get('token_data');
+    console.log('DEBUG: window.opener:', window.opener);
+    console.log('DEBUG: token_data:', token_data);
+    if (window.opener && token_data) {
+      try {
+        // Send token_data to main window
+        window.opener.postMessage({ token_data }, '*');
+        window.close();
+      } catch (e) {
+        document.body.innerHTML = `<h3>JS Error: ${e.message}</h3>`;
+      }
+    } else {
+      document.body.innerHTML = `<h3>Authentication failed or popup blocked.<br>window.opener: ${window.opener}<br>token_data: ${token_data}</h3>`;
+    }
+  </script>
+  <h3>Authentication complete. You may close this window.</h3>
+</body>
+</html>
