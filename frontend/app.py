@@ -8,16 +8,18 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 st.set_page_config(page_title="Super Calendar Agent", page_icon="📅")
 st.title("Super Calendar Agent")
 
+# Handle token from URL
+if "token_data" in st.query_params:
+    token_data_str = st.query_params["token_data"]
+    st.session_state.token_data = json.loads(token_data_str)
+    # Clean the URL
+    st.query_params.clear()
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-@st.cache_data(ttl=30)
 def check_auth():
-    try:
-        resp = httpx.get(f"{BACKEND_URL}/auth-status", timeout=5)
-        return resp.json().get("authenticated", False)
-    except Exception:
-        return False
+    return "token_data" in st.session_state
 
 authenticated = check_auth()
 
@@ -45,10 +47,14 @@ else:
             message_placeholder = st.empty()
             full_response = ""
             try:
+                headers = {
+                    "Authorization": f"Bearer {json.dumps(st.session_state.token_data, separators=(',', ':'))}"
+                }
                 with httpx.stream(
                     "POST",
                     f"{BACKEND_URL}/chat",
                     json={"message": user_input, "history": st.session_state.chat_history},
+                    headers=headers,
                     timeout=300
                 ) as response:
                     response.raise_for_status()

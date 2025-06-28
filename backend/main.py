@@ -1,14 +1,15 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from backend.agent_graph import compiled_graph
-from backend.oauth import router as oauth_router, is_authenticated
+from backend.agent_graph import create_agent_graph
+from backend.oauth import router as oauth_router, get_google_calendar_service
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.agents import AgentAction, AgentFinish
+from googleapiclient.discovery import Resource
 
 # Load env variables from .env file
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
@@ -30,16 +31,15 @@ app.add_middleware(
 async def root():
     return {"message": "Super Calendar Agent backend is running."}
 
-@app.get("/auth-status")
-async def auth_status():
-    return {"authenticated": is_authenticated()}
-
 class ChatRequest(BaseModel):
     message: str
     history: list
 
-async def get_agent_response_stream(req: ChatRequest):
+async def get_agent_response_stream(req: ChatRequest, service: Resource):
     """Streams the agent's response, including tool usage, as Server-Sent Events."""
+    
+    # Create and compile the graph for each request, ensuring it has the correct service
+    compiled_graph = create_agent_graph(service).compile()
     
     # Convert history to LangChain messages
     history_messages = []
@@ -50,24 +50,26 @@ async def get_agent_response_stream(req: ChatRequest):
         elif msg["role"] == "assistant":
             history_messages.append(AIMessage(content=msg["content"]))
 
+    # Define the initial state for the graph
     state = {
         "input": req.message,
         "chat_history": history_messages,
     }
     
+    # Stream the graph execution
     async for chunk in compiled_graph.astream(state):
         if "agent" in chunk:
             agent_outcome = chunk["agent"].get("agent_outcome")
             if agent_outcome:
                 if isinstance(agent_outcome, AgentAction):
-                    # It's a tool call
+                    # The agent is using a tool
                     tool_name = agent_outcome.tool
                     yield f"data: {json.dumps({'tool': tool_name, 'tool_input': agent_outcome.tool_input})}\n\n"
                 elif isinstance(agent_outcome, AgentFinish):
-                    # It's the final answer
+                    # The agent has finished
                     final_response = agent_outcome.return_values["output"]
                     yield f"data: {json.dumps({'response': final_response})}\n\n"
 
 @app.post("/chat")
-async def chat_endpoint(req: ChatRequest):
-    return StreamingResponse(get_agent_response_stream(req), media_type="text/event-stream")
+async def chat_endpoint(req: ChatRequest, service: Resource = Depends(get_google_calendar_service)):
+    return StreamingResponse(get_agent_response_stream(req, service), media_type="text/event-stream")

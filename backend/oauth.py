@@ -1,11 +1,12 @@
 import os
 import json
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from starlette.responses import Response
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
@@ -14,29 +15,57 @@ SCOPES = [
 ]
 BASE_DIR = os.path.join(os.path.dirname(__file__), '..')
 CREDENTIALS_PATH = os.path.join(BASE_DIR, 'env', 'credentials.json')
-TOKEN_PATH = os.path.join(BASE_DIR, 'env', 'token.json')
 REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/oauth2callback")
 
 router = APIRouter()
 
-def save_token(token):
-    with open(TOKEN_PATH, 'w') as f:
-        json.dump(token, f)
+async def get_current_user(request: Request) -> Credentials:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token_str = auth_header.split(" ")[1]
+    try:
+        token_data = json.loads(token_str)
+        creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        if not creds.valid:
+            # Attempt to refresh the token if it's expired and a refresh token is available
+            if creds.expired and creds.refresh_token:
+                from google.auth.transport.requests import Request as GoogleRequest
+                creds.refresh(GoogleRequest())
+            else:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail="Token is invalid or expired and cannot be refreshed",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        return creds
+    except (json.JSONDecodeError, KeyError) as e:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token format: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-def load_token():
-    if os.path.exists(TOKEN_PATH):
-        with open(TOKEN_PATH, 'r') as f:
-            token = json.load(f)
-        return token
-    return None
-
-def get_google_calendar_service():
-    token = load_token()
-    if not token:
-        return None
-    creds = Credentials.from_authorized_user_info(token, SCOPES)
-    service = build('calendar', 'v3', credentials=creds)
-    return service
+def get_google_calendar_service(creds: Credentials = Depends(get_current_user)):
+    if not creds or not creds.valid:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        return service
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=f"Failed to build calendar service: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 @router.get("/authorize")
 def authorize():
@@ -78,21 +107,10 @@ def oauth2callback(request: Request):
         )
     flow.fetch_token(code=code)
     creds = flow.credentials
-    save_token(json.loads(creds.to_json()))
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501") # Default to localhost for local development
-    html_content = f"""
-        <h3>Google Calendar connected! Redirecting to the app...</h3>
-        <script>
-            setTimeout(function() {{
-                window.location.href = '{frontend_url}';
-            }}, 1500);
-        </script>
-    """
-    return HTMLResponse(content=html_content)
+    token_data = json.loads(creds.to_json())
+    token_data_str = json.dumps(token_data)
 
-def is_authenticated():
-    token = load_token()
-    if not token:
-        return False
-    creds = Credentials.from_authorized_user_info(token, SCOPES)
-    return creds and creds.valid
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
+    redirect_url = f"{frontend_url}?token_data={token_data_str}"
+
+    return RedirectResponse(url=redirect_url)
