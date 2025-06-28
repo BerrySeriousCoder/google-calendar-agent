@@ -43,7 +43,7 @@ def authorize():
     credentials_info = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if credentials_info:
         client_config = json.loads(credentials_info)
-        flow = Flow.from_client_secrets_info(
+        flow = Flow.from_client_config(
             client_config,
             scopes=SCOPES,
             redirect_uri=REDIRECT_URI
@@ -65,7 +65,7 @@ def oauth2callback(request: Request):
     credentials_info = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if credentials_info:
         client_config = json.loads(credentials_info)
-        flow = Flow.from_client_secrets_info(
+        flow = Flow.from_client_config(
             client_config,
             scopes=SCOPES,
             redirect_uri=REDIRECT_URI
