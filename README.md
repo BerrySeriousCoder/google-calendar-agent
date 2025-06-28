@@ -6,6 +6,11 @@ This project contains a backend agent and a frontend application.
 
 This project features an agent designed to interact with external services, potentially including calendar management, utilizing various tools and capabilities.
 
+## 📽️ Demo
+
+[![Watch the demo](https://img.youtube.com/vi/LTx1TX4Vl1c/0.jpg)](https://youtu.be/LTx1TX4Vl1c?si=osFOMe-c9TXimztS)
+
+
 ## Project Structure
 
 The project is organized into two main directories:
