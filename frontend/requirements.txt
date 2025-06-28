@@ -1,2 +1,4 @@
 streamlit
 httpx
+streamlit-javascript
+python-dotenv
