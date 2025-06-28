@@ -128,8 +128,10 @@ def oauth2callback(request: Request):
     creds = flow.credentials
     token_data = json.loads(creds.to_json())
     token_data_str = json.dumps(token_data)
-
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
-    redirect_url = f"{backend_url}/static/auth_redirect.html?token_data={token_data_str}"
+    
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
+    redirect_url = f"{frontend_url}?token_data={token_data_str}"
+    # backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    # redirect_url = f"{backend_url}/static/auth_redirect.html?token_data={token_data_str}"
 
     return RedirectResponse(url=redirect_url)
