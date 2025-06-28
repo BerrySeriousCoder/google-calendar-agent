@@ -40,11 +40,20 @@ def get_google_calendar_service():
 
 @router.get("/authorize")
 def authorize():
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_PATH,
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI
-    )
+    credentials_info = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if credentials_info:
+        client_config = json.loads(credentials_info)
+        flow = Flow.from_client_secrets_info(
+            client_config,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI
+        )
+    else:
+        flow = Flow.from_client_secrets_file(
+            CREDENTIALS_PATH,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI
+        )
     auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
     return RedirectResponse(auth_url)
 
@@ -53,11 +62,20 @@ def oauth2callback(request: Request):
     code = request.query_params.get('code')
     if not code:
         return HTMLResponse("<h3>No code found in callback.</h3>")
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_PATH,
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI
-    )
+    credentials_info = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if credentials_info:
+        client_config = json.loads(credentials_info)
+        flow = Flow.from_client_secrets_info(
+            client_config,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI
+        )
+    else:
+        flow = Flow.from_client_secrets_file(
+            CREDENTIALS_PATH,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI
+        )
     flow.fetch_token(code=code)
     creds = flow.credentials
     save_token(json.loads(creds.to_json()))
