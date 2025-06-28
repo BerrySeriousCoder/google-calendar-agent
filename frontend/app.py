@@ -55,7 +55,7 @@ components.html(
 )
 
 if not authenticated:
-    st.info("You must connect your Google Calendar to use this assistant  and please manually refresh the page. after authenticating")
+    st.info("Please connect your Google Calendar to use this assistant. After authenticating, refresh this page. Note: Google verification is in progress and requires CASA certification for sensitive scopes. For testing, use the test account: Email: timeloom34@gmail.com    Password: Timeloomdemo@123")
 
     auth_url = f"{BACKEND_URL}/authorize"
 
